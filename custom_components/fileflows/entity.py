@@ -15,7 +15,7 @@ class ServerEntity(CoordinatorEntity):
     def device_info(self):
         return {
             "identifiers": {(DOMAIN, self._config_entry.entry_id)},
-            "name": f"{NAME} Server", # TODO: Add config name
+            "name": f"{NAME} {self._config_entry.title} Server",
             "manufacturer": NAME,
             "model": f"{NAME} Server"
         }
@@ -47,7 +47,7 @@ class NodeEntity(CoordinatorEntity):
     def device_info(self):
         return {
             "identifiers": {(DOMAIN, self._config_entry.entry_id, self._node_uid)},
-            "name": f"{NAME} {self._data['Name']} Node", # TODO: Add config name
+            "name": f"{NAME} {self._config_entry.title} {self._data['Name']} Node",
             "manufacturer": NAME,
             "model": f"{NAME} Node",
             "sw_version": self._data["Version"],
@@ -82,7 +82,7 @@ class WorkerEntity(CoordinatorEntity):
     def device_info(self):
         return {
             "identifiers": {(DOMAIN, self._config_entry.entry_id, self._worker_uid)},
-            "name": f"{NAME} {self._data['NodeName']} Worker", # TODO: Add config name and an identifier for multiple workers
+            "name": f"{NAME} {self._config_entry.title} {self._data['NodeName']} Worker", # TODO: Add an identifier for multiple workers
             "manufacturer": NAME,
             "model": f"{NAME} Worker",
             "via_device": (DOMAIN, self._config_entry.entry_id, self._data["NodeUid"]), # Node Device ID
