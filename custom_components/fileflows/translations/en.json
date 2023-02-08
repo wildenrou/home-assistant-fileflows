@@ -1,0 +1,19 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "FileFlows",
+        "description": "Connect a FileFlows instance.",
+        "data": {
+          "name": "Name",
+          "url": "URL",
+          "scan_interval": "Poll Interval",
+          "timeout": "Timeout"
+        }
+      }
+    },
+    "error": {
+      "connection_failed": "Unable to connect."
+    }
+  }
+}
