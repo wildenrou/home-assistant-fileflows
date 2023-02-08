@@ -1,0 +1,10 @@
+{
+  "domain": "fileflows",
+  "name": "FileFlows",
+  "version": "0.1",
+  "integration_type": "hub",
+  "documentation": "https://github.com/deosrc/home-assistant-fileflows",
+  "issue_tracker": "https://github.com/deosrc/home-assistant-fileflows/issues",
+  "codeowners": ["@deosrc"],
+  "iot_class": "local_polling"
+}
