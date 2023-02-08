@@ -1,116 +1,104 @@
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, DATA_BYTES, DATA_MEGABYTES
 from homeassistant.components.sensor.const import SensorDeviceClass
+from homeassistant.helpers.entity import EntityCategory
 
-from .coordinator import SystemInfoDataUpdateCoordinator
-from .const import DOMAIN, NAME
+from .coordinator import NodeInfoDataUpdateCoordinator, SystemInfoDataUpdateCoordinator
+from .const import DOMAIN
+from .entity import NodeInfoEntity, ServerInfoEntity
 
 async def async_setup_entry(hass, entry, async_add_devices):
     system_info_coordinator = hass.data[DOMAIN][entry.entry_id][SystemInfoDataUpdateCoordinator]
     async_add_devices([
-        CpuUsageSensor(system_info_coordinator, entry),
-        MemoryUsageSensor(system_info_coordinator, entry)
+        CpuUsageServerSensor(system_info_coordinator, entry),
+        MemoryUsageServerSensor(system_info_coordinator, entry)
     ])
 
-class CpuUsageSensor(CoordinatorEntity, SensorEntity):
+    # TODO: Work out how to add new nodes as they appear
+    node_info_coordinator = hass.data[DOMAIN][entry.entry_id][NodeInfoDataUpdateCoordinator]
+    for node in node_info_coordinator.data:
+        async_add_devices([
+            OperatingSystemNodeSensor(node_info_coordinator, entry, node["Uid"])
+        ])
 
-    def __init__(self, coordinator, config_entry):
-        super().__init__(coordinator)
-        self._config_entry = config_entry
 
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._config_entry.entry_id)},
-            "name": f"{NAME} Server", # TODO: Add config name
-            "manufacturer": NAME,
-        }
+class CpuUsageServerSensor(ServerInfoEntity, SensorEntity):
 
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            "integration": DOMAIN,
-        }
+    _attr_icon = "mdi:memory"
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_native_precision = 0
 
     @property
     def unique_id(self):
-        return f"{self._config_entry.entry_id}_server_cpu_usage"
+        return f"{self._unique_id_prefix}_cpu_usage"
 
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{self.device_info.get('name')} CPU Usage"
+        return f"{self._name_prefix} CPU Usage"
 
     @property
     def native_value(self):
         """Return the native value of the sensor."""
         return int(self.coordinator.data.get("CpuUsage"))
 
-    @property
-    def icon(self):
-        """Return the icon of the sensor."""
-        return "mdi:memory"
 
-    @property
-    def native_unit_of_measurement(self) -> str | None:
-        return PERCENTAGE
+class MemoryUsageServerSensor(ServerInfoEntity, SensorEntity):
 
-    @property
-    def native_precision(self) -> int | None:
-        return 0
-
-
-class MemoryUsageSensor(CoordinatorEntity, SensorEntity):
-
-    def __init__(self, coordinator, config_entry):
-        super().__init__(coordinator)
-        self._config_entry = config_entry
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._config_entry.entry_id)},
-            "name": f"{NAME} Server", # TODO: Add config name
-            "manufacturer": NAME,
-        }
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            "integration": DOMAIN,
-        }
+    _attr_icon = "mdi:memory"
+    _attr_native_unit_of_measurement = DATA_BYTES
+    _attr_suggested_unit_of_measurement = DATA_MEGABYTES
+    _attr_device_class = SensorDeviceClass.DATA_SIZE
 
     @property
     def unique_id(self):
-        return f"{self._config_entry.entry_id}_server_memory_usage"
+        return f"{self._unique_id_prefix}_memory_usage"
 
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{self.device_info.get('name')} Memory Usage"
+        return f"{self._name_prefix} Memory Usage"
 
     @property
     def native_value(self):
         """Return the native value of the sensor."""
         return int(self.coordinator.data.get("MemoryUsage"))
 
-    @property
-    def icon(self):
-        """Return the icon of the sensor."""
-        return "mdi:memory"
+
+class OperatingSystemNodeSensor(NodeInfoEntity, SensorEntity):
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def native_unit_of_measurement(self) -> str | None:
-        return "B"
+    def unique_id(self):
+        return f"{self._unique_id_prefix}_operating_system"
 
     @property
-    def suggested_unit_of_measurement(self) -> str | None:
-        return "MB"
+    def name(self):
+        """Return the name of the sensor."""
+        return f"{self._name_prefix} Operating System"
 
     @property
-    def device_class(self) -> str | None:
-        return SensorDeviceClass.DATA_SIZE
+    def __raw_value(self):
+        return int(self._data.get("OperatingSystem"))
+
+    @property
+    def native_value(self) -> str | None:
+        if self.__raw_value == 1:
+            return "Windows"
+        if self.__raw_value == 2:
+            return "Linux"
+        if self.__raw_value == 3:
+            return "Mac"
+        return "Unknown"
+
+    @property
+    def icon(self) -> str | None:
+        if self.__raw_value == 1:
+            return "mdi:microsoft-windows"
+        if self.__raw_value == 2:
+            return "mdi:linux"
+        if self.__raw_value == 3:
+            return "mdi:apple"
+        return "mdi:desktop-classic"

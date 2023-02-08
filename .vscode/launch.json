@@ -12,14 +12,13 @@
         "host": "localhost",
         "port": 5678
       },
-      "preLaunchTask": "Run Home Assistant",
       "pathMappings": [
         {
           "localRoot": "${workspaceFolder}/custom_components",
           "remoteRoot": "/config/custom_components"
         }
       ],
-      "justMyCode": true
+      "justMyCode": false
     }
   ]
 }

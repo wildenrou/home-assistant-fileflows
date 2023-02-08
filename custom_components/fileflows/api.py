@@ -21,14 +21,28 @@ class FileFlowsApiClient:
         """Gets the system info from the fileflows server."""
         return await self.__call_api("/api/system/info")
 
-    async def __call_api(self, path: str):
+    async def async_get_node_info(self) -> dict:
+        """Gets the node info from the fileflows server."""
+        return await self.__call_api("/api/node")
+
+    async def async_set_node_state(self, node_uid: str, is_enabled: bool) -> dict:
+        """Gets the node info from the fileflows server."""
+        return await self.__call_api(f"/api/node/state/{node_uid}?enable={is_enabled}", method="put")
+
+    async def __call_api(self, path: str, method: str = "get"):
         url = self.__base_url.strip("/") + path
 
-        _LOGGER.debug("Sending request to %s", url)
+        _LOGGER.debug("Sending request %s to %s", method, url)
 
         try:
             async with async_timeout.timeout(self.__timeout):
-                response = await self.__session.get(url)
+                if method.lower() == "get":
+                    response = await self.__session.get(url)
+                elif method.lower() == "put":
+                    response = await self.__session.put(url)
+                else:
+                    raise ValueError(f"Unrecognised HTTP method {method}")
+
                 response.raise_for_status()
                 _LOGGER.debug("Request to %s successful", url)
 

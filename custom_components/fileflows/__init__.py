@@ -6,10 +6,9 @@ from homeassistant.const import CONF_URL, CONF_TIMEOUT, CONF_SCAN_INTERVAL
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from custom_components.fileflows.coordinator import SystemInfoDataUpdateCoordinator
-
 from .api import FileFlowsApiClient
 from .const import DOMAIN, PLATFORMS
+from .coordinator import NodeInfoDataUpdateCoordinator, SystemInfoDataUpdateCoordinator
 
 
 async def async_setup(hass: HomeAssistant, config):
@@ -25,15 +24,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     session = async_get_clientsession(hass)
     client = FileFlowsApiClient(entry.data.get(CONF_URL), int(entry.data.get(CONF_TIMEOUT)), session)
 
-    system_info_coordinator = SystemInfoDataUpdateCoordinator(hass, client, scan_interval)
-    await system_info_coordinator.async_refresh()
-
-    if not system_info_coordinator.last_update_success:
-        raise ConfigEntryNotReady
 
     hass.data[DOMAIN][entry.entry_id] = {
-        SystemInfoDataUpdateCoordinator: system_info_coordinator
+        SystemInfoDataUpdateCoordinator: SystemInfoDataUpdateCoordinator(hass, client, scan_interval),
+        NodeInfoDataUpdateCoordinator: NodeInfoDataUpdateCoordinator(hass, client, scan_interval)
     }
+
+    for _, coordinator in hass.data[DOMAIN][entry.entry_id].items():
+        await coordinator.async_refresh()
+        if not coordinator.last_update_success:
+            raise ConfigEntryNotReady
 
     for platform in PLATFORMS:
         if entry.options.get(platform, True):

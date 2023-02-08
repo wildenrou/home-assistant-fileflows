@@ -6,16 +6,31 @@ from .const import DOMAIN
 from .api import _LOGGER, FileFlowsApiClient
 
 class SystemInfoDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the API."""
+    """Class to manage fetching server info from the API."""
 
     def __init__(self, hass: HomeAssistant, client: FileFlowsApiClient, scan_interval: int) -> None:
         """Initialize."""
-        self.__client = client
+        self.client = client
 
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=scan_interval))
 
     async def _async_update_data(self):
         try:
-            return await self.__client.async_get_system_info()
+            return await self.client.async_get_system_info()
+        except Exception as exception:
+            raise UpdateFailed() from exception
+
+class NodeInfoDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching node info from the API."""
+
+    def __init__(self, hass: HomeAssistant, client: FileFlowsApiClient, scan_interval: int) -> None:
+        """Initialize."""
+        self.client = client
+
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=scan_interval))
+
+    async def _async_update_data(self):
+        try:
+            return await self.client.async_get_node_info()
         except Exception as exception:
             raise UpdateFailed() from exception
