@@ -5,7 +5,7 @@ from homeassistant.helpers.entity import EntityCategory
 
 from .coordinator import NodeInfoDataUpdateCoordinator
 from .const import DOMAIN
-from .entity import NodeInfoEntity
+from .entity import NodeEntity
 
 async def async_setup_entry(hass, entry, async_add_devices):
     # TODO: Work out how to add new nodes as they appear
@@ -16,7 +16,7 @@ async def async_setup_entry(hass, entry, async_add_devices):
         ])
 
 
-class EnabledNodeSwitch(NodeInfoEntity, SwitchEntity):
+class EnabledNodeSwitch(NodeEntity, SwitchEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Enabled"

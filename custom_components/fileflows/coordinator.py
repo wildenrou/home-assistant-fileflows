@@ -51,3 +51,19 @@ class NodeInfoDataUpdateCoordinator(DataUpdateCoordinator):
             return await self.client.async_get_node_info()
         except Exception as exception:
             raise UpdateFailed() from exception
+
+
+class WorkerInfoDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching worker info from the API."""
+
+    def __init__(self, hass: HomeAssistant, client: FileFlowsApiClient, scan_interval: int) -> None:
+        """Initialize."""
+        self.client = client
+
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=scan_interval))
+
+    async def _async_update_data(self):
+        try:
+            return await self.client.async_get_worker_info()
+        except Exception as exception:
+            raise UpdateFailed() from exception

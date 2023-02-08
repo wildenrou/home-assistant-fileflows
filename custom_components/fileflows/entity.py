@@ -5,7 +5,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, NAME
 
 
-class ServerInfoEntity(CoordinatorEntity):
+class ServerEntity(CoordinatorEntity):
 
     def __init__(self, coordinator, config_entry):
         super().__init__(coordinator)
@@ -32,7 +32,7 @@ class ServerInfoEntity(CoordinatorEntity):
         return f"{self._config_entry.entry_id}_server"
 
 
-class NodeInfoEntity(CoordinatorEntity):
+class NodeEntity(CoordinatorEntity):
 
     def __init__(self, coordinator, config_entry, node_uid: str):
         super().__init__(coordinator)
@@ -65,3 +65,36 @@ class NodeInfoEntity(CoordinatorEntity):
     def _unique_id_prefix(self):
         clean_node_name = self._data["Name"].lower().replace(" ", "_")
         return f"{self._config_entry.entry_id}_{clean_node_name}"
+
+
+class WorkerEntity(CoordinatorEntity):
+
+    def __init__(self, coordinator, config_entry, worker_uid: str):
+        super().__init__(coordinator)
+        self._config_entry = config_entry
+        self._worker_uid = worker_uid
+
+    @property
+    def _data(self):
+        return [d for d in self.coordinator.data if d["Uid"] == self._worker_uid][0]
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self._config_entry.entry_id, self._worker_uid)},
+            "name": f"{NAME} {self._data['NodeName']} Worker", # TODO: Add config name and an identifier for multiple workers
+            "manufacturer": NAME,
+            "model": f"{NAME} Worker",
+            "via_device": (DOMAIN, self._config_entry.entry_id, self._data["NodeUid"]), # Node Device ID
+        }
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "integration": DOMAIN,
+        }
+
+    @property
+    def _unique_id_prefix(self):
+        return f"{self._config_entry.entry_id}_{self._worker_uid}"

@@ -5,7 +5,7 @@ from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySen
 
 from .coordinator import NodeInfoDataUpdateCoordinator
 from .const import DOMAIN
-from .entity import NodeInfoEntity
+from .entity import NodeEntity
 
 async def async_setup_entry(hass, entry, async_add_devices):
     # TODO: Work out how to add new nodes as they appear
@@ -16,7 +16,7 @@ async def async_setup_entry(hass, entry, async_add_devices):
         ])
 
 
-class ConnectedNodeBinarySensor(NodeInfoEntity, BinarySensorEntity):
+class ConnectedNodeBinarySensor(NodeEntity, BinarySensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Connected"

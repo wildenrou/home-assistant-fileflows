@@ -33,6 +33,10 @@ class FileFlowsApiClient:
         """Gets the node info from the fileflows server."""
         return await self.__call_api(f"/api/node/state/{node_uid}?enable={is_enabled}", method="put")
 
+    async def async_get_worker_info(self) -> dict:
+        """Gets the node info from the fileflows server."""
+        return await self.__call_api("/api/worker")
+
     async def __call_api(self, path: str, method: str = "get"):
         url = self.__base_url.strip("/") + path
 
