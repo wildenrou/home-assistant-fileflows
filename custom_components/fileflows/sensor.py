@@ -4,8 +4,8 @@ from homeassistant.const import PERCENTAGE, DATA_BYTES, DATA_MEGABYTES
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.helpers.entity import EntityCategory
 
-from .coordinator import NodeInfoDataUpdateCoordinator, SystemInfoDataUpdateCoordinator
-from .const import DOMAIN
+from .coordinator import NodeInfoDataUpdateCoordinator, SystemInfoDataUpdateCoordinator, LibraryFileStatusDataUpdateCoordinator
+from .const import DOMAIN, STATUS_MAP
 from .entity import NodeInfoEntity, ServerInfoEntity
 
 async def async_setup_entry(hass, entry, async_add_devices):
@@ -13,6 +13,12 @@ async def async_setup_entry(hass, entry, async_add_devices):
     async_add_devices([
         CpuUsageServerSensor(system_info_coordinator, entry),
         MemoryUsageServerSensor(system_info_coordinator, entry)
+    ])
+
+    library_file_status_coordinator = hass.data[DOMAIN][entry.entry_id][LibraryFileStatusDataUpdateCoordinator]
+    async_add_devices([
+        LibraryFileStatusServerSensor(library_file_status_coordinator, entry, s)
+        for s, _ in STATUS_MAP.items()
     ])
 
     # TODO: Work out how to add new nodes as they appear
@@ -64,6 +70,37 @@ class MemoryUsageServerSensor(ServerInfoEntity, SensorEntity):
     def native_value(self):
         """Return the native value of the sensor."""
         return int(self.coordinator.data.get("MemoryUsage"))
+
+
+class LibraryFileStatusServerSensor(ServerInfoEntity, SensorEntity):
+
+    _attr_icon = "mdi:file"
+
+    def __init__(self, coordinator, config_entry, status_id):
+        super().__init__(coordinator, config_entry)
+        self._status_id = status_id
+
+    @property
+    def status_name(self):
+        return STATUS_MAP[self._status_id]
+
+    @property
+    def unique_id(self):
+        clean_name = self.status_name.lower().replace(" ", "_")
+        return f"{self._unique_id_prefix}_file_count_{clean_name}"
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return f"{self._name_prefix} File Count - {self.status_name}"
+
+    @property
+    def native_value(self):
+        """Return the native value of the sensor."""
+        match = [s for s in self.coordinator.data if s["Status"] == self._status_id]
+        if match:
+            return int(match[0]["Count"])
+        return 0
 
 
 class OperatingSystemNodeSensor(NodeInfoEntity, SensorEntity):

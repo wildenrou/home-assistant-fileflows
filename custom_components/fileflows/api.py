@@ -21,6 +21,10 @@ class FileFlowsApiClient:
         """Gets the system info from the fileflows server."""
         return await self.__call_api("/api/system/info")
 
+    async def async_get_library_file_status(self) -> dict:
+        """Gets the library file status from the fileflows server."""
+        return await self.__call_api("/api/library-file/status")
+
     async def async_get_node_info(self) -> dict:
         """Gets the node info from the fileflows server."""
         return await self.__call_api("/api/node")
