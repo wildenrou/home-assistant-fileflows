@@ -17,6 +17,8 @@ async def async_setup_entry(hass, entry, async_add_devices):
 
 class FlowRunnersNodeNumber(NodeInfoEntity, NumberEntity):
 
+    _attr_has_entity_name = True
+    _attr_name = "Flow Runners"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_native_min_value = 0
     _attr_native_step = 1
@@ -26,11 +28,6 @@ class FlowRunnersNodeNumber(NodeInfoEntity, NumberEntity):
     @property
     def unique_id(self):
         return f"{self._unique_id_prefix}_flow_runners"
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._name_prefix} Flow Runners"
 
     @property
     def native_value(self) -> int | None:

@@ -18,16 +18,13 @@ async def async_setup_entry(hass, entry, async_add_devices):
 
 class EnabledNodeSwitch(NodeInfoEntity, SwitchEntity):
 
+    _attr_has_entity_name = True
+    _attr_name = "Enabled"
     _attr_entity_category = EntityCategory.CONFIG
 
     @property
     def unique_id(self):
         return f"{self._unique_id_prefix}_enabled"
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._name_prefix} Enabled"
 
     @property
     def is_on(self) -> bool | None:

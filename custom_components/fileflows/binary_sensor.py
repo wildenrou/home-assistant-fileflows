@@ -18,16 +18,13 @@ async def async_setup_entry(hass, entry, async_add_devices):
 
 class ConnectedNodeBinarySensor(NodeInfoEntity, BinarySensorEntity):
 
+    _attr_has_entity_name = True
+    _attr_name = "Connected"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
     @property
     def unique_id(self):
         return f"{self._unique_id_prefix}_connected"
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._name_prefix} Connected"
 
     @property
     def __raw_value(self) -> datetime:

@@ -31,6 +31,8 @@ async def async_setup_entry(hass, entry, async_add_devices):
 
 class CpuUsageServerSensor(ServerInfoEntity, SensorEntity):
 
+    _attr_has_entity_name = True
+    _attr_name = "CPU Usage"
     _attr_icon = "mdi:memory"
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_native_precision = 0
@@ -40,11 +42,6 @@ class CpuUsageServerSensor(ServerInfoEntity, SensorEntity):
         return f"{self._unique_id_prefix}_cpu_usage"
 
     @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._name_prefix} CPU Usage"
-
-    @property
     def native_value(self):
         """Return the native value of the sensor."""
         return int(self.coordinator.data.get("CpuUsage"))
@@ -52,6 +49,8 @@ class CpuUsageServerSensor(ServerInfoEntity, SensorEntity):
 
 class MemoryUsageServerSensor(ServerInfoEntity, SensorEntity):
 
+    _attr_has_entity_name = True
+    _attr_name = "Memory Usage"
     _attr_icon = "mdi:memory"
     _attr_native_unit_of_measurement = DATA_BYTES
     _attr_suggested_unit_of_measurement = DATA_MEGABYTES
@@ -62,11 +61,6 @@ class MemoryUsageServerSensor(ServerInfoEntity, SensorEntity):
         return f"{self._unique_id_prefix}_memory_usage"
 
     @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._name_prefix} Memory Usage"
-
-    @property
     def native_value(self):
         """Return the native value of the sensor."""
         return int(self.coordinator.data.get("MemoryUsage"))
@@ -74,6 +68,7 @@ class MemoryUsageServerSensor(ServerInfoEntity, SensorEntity):
 
 class LibraryFileStatusServerSensor(ServerInfoEntity, SensorEntity):
 
+    _attr_has_entity_name = True
     _attr_icon = "mdi:file"
 
     def __init__(self, coordinator, config_entry, status_id):
@@ -92,7 +87,7 @@ class LibraryFileStatusServerSensor(ServerInfoEntity, SensorEntity):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{self._name_prefix} File Count - {self.status_name}"
+        return f"File Count - {self.status_name}"
 
     @property
     def native_value(self):
@@ -105,16 +100,13 @@ class LibraryFileStatusServerSensor(ServerInfoEntity, SensorEntity):
 
 class OperatingSystemNodeSensor(NodeInfoEntity, SensorEntity):
 
+    _attr_has_entity_name = True
+    _attr_name = "Operating System"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def unique_id(self):
         return f"{self._unique_id_prefix}_operating_system"
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._name_prefix} Operating System"
 
     @property
     def __raw_value(self):

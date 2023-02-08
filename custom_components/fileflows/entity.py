@@ -31,11 +31,6 @@ class ServerInfoEntity(CoordinatorEntity):
     def _unique_id_prefix(self):
         return f"{self._config_entry.entry_id}_server"
 
-    @property
-    def _name_prefix(self):
-        """Return the name of the sensor."""
-        return f"{self.device_info.get('name')}"
-
 
 class NodeInfoEntity(CoordinatorEntity):
 
@@ -70,8 +65,3 @@ class NodeInfoEntity(CoordinatorEntity):
     def _unique_id_prefix(self):
         clean_node_name = self._data["Name"].lower().replace(" ", "_")
         return f"{self._config_entry.entry_id}_{clean_node_name}"
-
-    @property
-    def _name_prefix(self):
-        """Return the name of the sensor."""
-        return f"{self.device_info.get('name')}"
