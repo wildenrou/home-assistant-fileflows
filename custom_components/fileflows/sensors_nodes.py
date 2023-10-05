@@ -11,10 +11,40 @@ async def async_setup_entry(hass, entry, async_add_devices):
     node_info_coordinator = hass.data[DOMAIN][entry.entry_id][NodeInfoDataUpdateCoordinator]
     for node in node_info_coordinator.data:
         async_add_devices([
-            OperatingSystemNodeSensor(node_info_coordinator, entry, node["Uid"])
+            StatusNodeSensor(node_info_coordinator, entry, node["Uid"]),
             OperatingSystemNodeSensor(node_info_coordinator, entry, node["Uid"]),
             ArchitectureNodeSensor(node_info_coordinator, entry, node["Uid"])
         ])
+
+
+class StatusNodeSensor(NodeEntity, SensorEntity):
+
+    _attr_has_entity_name = True
+    _attr_name = "Status"
+
+    @property
+    def unique_id(self):
+        return f"{self._unique_id_prefix}_status"
+
+    @property
+    def __raw_value(self):
+        return int(self._data.get("Status"))
+
+    @property
+    def native_value(self) -> str | None:
+        if self.__raw_value == 0:
+            return "Offline"
+        if self.__raw_value == 1:
+            return "Idle"
+        if self.__raw_value == 2:
+            return "Processing"
+        if self.__raw_value == 3:
+            return "Disabled"
+        if self.__raw_value == 4:
+            return "Out of Schedule"
+        if self.__raw_value == 4:
+            return "Version Mismatch"
+        return "Unknown"
 
 
 class OperatingSystemNodeSensor(NodeEntity, SensorEntity):
