@@ -5,24 +5,24 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import PERCENTAGE, DATA_BYTES, DATA_GIGABYTES
 from homeassistant.components.sensor.const import SensorDeviceClass
 
-from .coordinator import WorkerInfoDataUpdateCoordinator
+from .coordinator import RunnerInfoDataUpdateCoordinator
 from .const import DOMAIN
-from .entity import WorkerEntity
+from .entity import RunnerEntity
 
 async def async_setup_entry(hass, entry, async_add_devices):
     # TODO: Work out how to add new nodes as they appear
-    worker_info_coordinator = hass.data[DOMAIN][entry.entry_id][WorkerInfoDataUpdateCoordinator]
-    for worker in worker_info_coordinator.data:
+    runner_info_coordinator = hass.data[DOMAIN][entry.entry_id][RunnerInfoDataUpdateCoordinator]
+    for runner in runner_info_coordinator.data:
         async_add_devices([
-            StartedWorkerSensor(worker_info_coordinator, entry, worker["Uid"]),
-            CurrentPartWorkerSensor(worker_info_coordinator, entry, worker["Uid"]),
-            FileLibraryWorkerSensor(worker_info_coordinator, entry, worker["Uid"]),
-            FileOriginalSizeWorkerSensor(worker_info_coordinator, entry, worker["Uid"]),
-            FlowWorkerSensor(worker_info_coordinator, entry, worker["Uid"])
+            StartedRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
+            CurrentPartRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
+            FileLibraryRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
+            FileOriginalSizeRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
+            FlowRunnerSensor(runner_info_coordinator, entry, runner["Uid"])
         ])
 
 
-class StartedWorkerSensor(WorkerEntity, SensorEntity):
+class StartedRunnerSensor(RunnerEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Started"
@@ -38,7 +38,7 @@ class StartedWorkerSensor(WorkerEntity, SensorEntity):
         return parser.parse(self._data.get("StartedAt"))
 
 
-class CurrentPartWorkerSensor(WorkerEntity, SensorEntity):
+class CurrentPartRunnerSensor(RunnerEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Current Part"
@@ -59,7 +59,7 @@ class CurrentPartWorkerSensor(WorkerEntity, SensorEntity):
         }
 
 
-class CurrentPartProgressWorkerSensor(WorkerEntity, SensorEntity):
+class CurrentPartProgressRunnerSensor(RunnerEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Current Part Progress"
@@ -74,7 +74,7 @@ class CurrentPartProgressWorkerSensor(WorkerEntity, SensorEntity):
         return self._data.get("CurrentPartPercent")
 
 
-class FileLibraryWorkerSensor(WorkerEntity, SensorEntity):
+class FileLibraryRunnerSensor(RunnerEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Library"
@@ -88,7 +88,7 @@ class FileLibraryWorkerSensor(WorkerEntity, SensorEntity):
         return self._data.get("Library", {}).get("Name")
 
 
-class FilePathWorkerSensor(WorkerEntity, SensorEntity):
+class FilePathRunnerSensor(RunnerEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "File Path"
@@ -102,7 +102,7 @@ class FilePathWorkerSensor(WorkerEntity, SensorEntity):
         return self._data.get("LibraryFile", {}).get("RelativePath")
 
 
-class FileOriginalSizeWorkerSensor(WorkerEntity, SensorEntity):
+class FileOriginalSizeRunnerSensor(RunnerEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Original File Size"
@@ -119,7 +119,7 @@ class FileOriginalSizeWorkerSensor(WorkerEntity, SensorEntity):
         return self._data.get("LibraryFile", {}).get("OriginalSize")
 
 
-class FlowWorkerSensor(WorkerEntity, SensorEntity):
+class FlowRunnerSensor(RunnerEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Flow"

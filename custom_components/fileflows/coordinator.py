@@ -53,8 +53,8 @@ class NodeInfoDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed() from exception
 
 
-class WorkerInfoDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching worker info from the API."""
+class RunnerInfoDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching runner info from the API."""
 
     def __init__(self, hass: HomeAssistant, client: FileFlowsApiClient, scan_interval: int) -> None:
         """Initialize."""

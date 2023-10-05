@@ -11,14 +11,14 @@ async def async_setup_entry(hass, entry, async_add_devices):
     node_info_coordinator = hass.data[DOMAIN][entry.entry_id][NodeInfoDataUpdateCoordinator]
     for node in node_info_coordinator.data:
         async_add_devices([
-            WorkersNodeNumber(node_info_coordinator, entry, node["Uid"])
+            RunnersNodeNumber(node_info_coordinator, entry, node["Uid"])
         ])
 
 
-class WorkersNodeNumber(NodeEntity, NumberEntity):
+class RunnersNodeNumber(NodeEntity, NumberEntity):
 
     _attr_has_entity_name = True
-    _attr_name = "Workers"
+    _attr_name = "Runners"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_native_min_value = 0
     _attr_native_step = 1
@@ -27,7 +27,7 @@ class WorkersNodeNumber(NodeEntity, NumberEntity):
 
     @property
     def unique_id(self):
-        return f"{self._unique_id_prefix}_workers"
+        return f"{self._unique_id_prefix}_runners"
 
     @property
     def native_value(self) -> int | None:
