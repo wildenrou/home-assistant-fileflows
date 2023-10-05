@@ -37,6 +37,10 @@ class OperatingSystemNodeSensor(NodeEntity, SensorEntity):
             return "Linux"
         if self.__raw_value == 3:
             return "Mac"
+        if self.__raw_value == 4:
+            return "Docker"
+        if self.__raw_value == 5:
+            return "FreeBSD"
         return "Unknown"
 
     @property
