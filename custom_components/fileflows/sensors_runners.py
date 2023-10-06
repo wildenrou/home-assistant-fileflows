@@ -16,7 +16,9 @@ async def async_setup_entry(hass, entry, async_add_devices):
         async_add_devices([
             StartedRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
             CurrentPartRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
+            CurrentPartProgressRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
             FileLibraryRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
+            FilePathRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
             FileOriginalSizeRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
             FlowRunnerSensor(runner_info_coordinator, entry, runner["Uid"])
         ])
