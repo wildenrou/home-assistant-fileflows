@@ -69,23 +69,29 @@ class NodeEntity(CoordinatorEntity):
 
 class RunnerEntity(CoordinatorEntity):
 
-    def __init__(self, coordinator, config_entry, runner_uid: str):
+    def __init__(self, coordinator, config_entry, node_info, runner_idx: str):
         super().__init__(coordinator)
         self._config_entry = config_entry
-        self._runner_uid = runner_uid
+        self._node_id = node_info["id"]
+        self._node_name = node_info.get("name")
+        self._runner_idx = runner_idx
 
     @property
     def _data(self):
-        return [d for d in self.coordinator.data if d["Uid"] == self._runner_uid][0]
+        active_node_runners = [d for d in self.coordinator.data if d.get("NodeUid") == self._node_id]
+
+        if self._runner_idx < len(active_node_runners):
+            return active_node_runners[self._runner_idx]
+        return {}
 
     @property
     def device_info(self):
         return {
-            "identifiers": {(DOMAIN, self._config_entry.entry_id, self._runner_uid)},
-            "name": f"{NAME} {self._config_entry.title} {self._data['NodeName']} Runner", # TODO: Add an identifier for multiple runners
+            "identifiers": {(DOMAIN, self._config_entry.entry_id, self._node_id, self._runner_idx)},
+            "name": f"{NAME} {self._config_entry.title} {self._node_name} Runner {self._runner_idx + 1}",
             "manufacturer": NAME,
             "model": f"{NAME} Runner",
-            "via_device": (DOMAIN, self._config_entry.entry_id, self._data["NodeUid"]), # Node Device ID
+            "via_device": (DOMAIN, self._config_entry.entry_id, self._node_id), # Node Device ID
         }
 
     @property
@@ -97,4 +103,4 @@ class RunnerEntity(CoordinatorEntity):
 
     @property
     def _unique_id_prefix(self):
-        return f"{self._config_entry.entry_id}_{self._runner_uid}"
+        return f"{self._config_entry.entry_id}_{self._node_id}_{self._runner_idx}"

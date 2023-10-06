@@ -5,23 +5,30 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import PERCENTAGE, DATA_BYTES, DATA_GIGABYTES
 from homeassistant.components.sensor.const import SensorDeviceClass
 
-from .coordinator import RunnerInfoDataUpdateCoordinator
+from .coordinator import NodeInfoDataUpdateCoordinator, RunnerInfoDataUpdateCoordinator
 from .const import DOMAIN
 from .entity import RunnerEntity
 
 async def async_setup_entry(hass, entry, async_add_devices):
-    # TODO: Work out how to add new nodes as they appear
+    # TODO: Work out how to add new nodes/runners as they appear
+
+    # Get number of runners per node
+    node_info_coordinator = hass.data[DOMAIN][entry.entry_id][NodeInfoDataUpdateCoordinator]
+    node_info = [{"id": d.get("Uid"), "name": d.get("Name"), "runner_count": d.get("FlowRunners")} for d in node_info_coordinator.data]
+
     runner_info_coordinator = hass.data[DOMAIN][entry.entry_id][RunnerInfoDataUpdateCoordinator]
-    for runner in runner_info_coordinator.data:
-        async_add_devices([
-            StartedRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
-            CurrentPartRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
-            CurrentPartProgressRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
-            FileLibraryRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
-            FilePathRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
-            FileOriginalSizeRunnerSensor(runner_info_coordinator, entry, runner["Uid"]),
-            FlowRunnerSensor(runner_info_coordinator, entry, runner["Uid"])
-        ])
+
+    for ni in node_info:
+        for runner_idx in range(ni["runner_count"]):
+            async_add_devices([
+                StartedRunnerSensor(runner_info_coordinator, entry, ni, runner_idx),
+                CurrentPartRunnerSensor(runner_info_coordinator, entry, ni, runner_idx),
+                CurrentPartProgressRunnerSensor(runner_info_coordinator, entry, ni, runner_idx),
+                FileLibraryRunnerSensor(runner_info_coordinator, entry, ni, runner_idx),
+                FilePathRunnerSensor(runner_info_coordinator, entry, ni, runner_idx),
+                FileOriginalSizeRunnerSensor(runner_info_coordinator, entry, ni, runner_idx),
+                FlowRunnerSensor(runner_info_coordinator, entry, ni, runner_idx)
+            ])
 
 
 class StartedRunnerSensor(RunnerEntity, SensorEntity):
@@ -37,7 +44,8 @@ class StartedRunnerSensor(RunnerEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return parser.parse(self._data.get("StartedAt"))
+        value = self._data.get("StartedAt")
+        return parser.parse(value) if value else None
 
 
 class CurrentPartRunnerSensor(RunnerEntity, SensorEntity):
