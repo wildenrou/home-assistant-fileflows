@@ -17,6 +17,10 @@ class FileFlowsApiClient:
         """Gets the version number of FileFlows server."""
         return await self.__call_api("/api/system/version")
 
+    async def async_get_latest_version(self) -> str:
+        """Gets the version number of FileFlows server."""
+        return await self.__call_api("/api/settings/check-update-available")
+
     async def async_get_system_info(self) -> dict:
         """Gets the system info from the fileflows server."""
         return await self.__call_api("/api/system/info")

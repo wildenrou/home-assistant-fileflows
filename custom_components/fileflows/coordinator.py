@@ -21,6 +21,25 @@ class SystemInfoDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed() from exception
 
 
+class VersionDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching server info from the API."""
+
+    def __init__(self, hass: HomeAssistant, client: FileFlowsApiClient, scan_interval: int) -> None:
+        """Initialize."""
+        self.client = client
+
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=scan_interval))
+
+    async def _async_update_data(self):
+        try:
+            return {
+                "installed": await self.client.async_get_system_version(),
+                "latest": await self.client.async_get_latest_version()
+            }
+        except Exception as exception:
+            raise UpdateFailed() from exception
+
+
 class LibraryFileStatusDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching library file status from the API."""
 

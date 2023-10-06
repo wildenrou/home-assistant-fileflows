@@ -1,7 +1,7 @@
 NAME = "FileFlows"
 DOMAIN = "fileflows"
 
-PLATFORMS = ["sensor", "binary_sensor", "number", "switch"]
+PLATFORMS = ["sensor", "binary_sensor", "number", "switch", "update"]
 
 STATUS_MAP = {
     # Copy of enum from https://github.com/revenz/FileFlows/blob/master/Shared/Models/LibraryFile.cs

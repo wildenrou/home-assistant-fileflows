@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_URL, CONF_TIMEOUT, CONF_SCAN_INTERVAL
@@ -8,7 +7,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FileFlowsApiClient
 from .const import DOMAIN, PLATFORMS
-from .coordinator import NodeInfoDataUpdateCoordinator, SystemInfoDataUpdateCoordinator, LibraryFileStatusDataUpdateCoordinator, RunnerInfoDataUpdateCoordinator
+from .coordinator import NodeInfoDataUpdateCoordinator, SystemInfoDataUpdateCoordinator, LibraryFileStatusDataUpdateCoordinator, RunnerInfoDataUpdateCoordinator, VersionDataUpdateCoordinator
 
 
 async def async_setup(hass: HomeAssistant, config):
@@ -27,6 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.data[DOMAIN][entry.entry_id] = {
         SystemInfoDataUpdateCoordinator: SystemInfoDataUpdateCoordinator(hass, client, scan_interval),
+        VersionDataUpdateCoordinator: VersionDataUpdateCoordinator(hass, client, scan_interval),
         LibraryFileStatusDataUpdateCoordinator: LibraryFileStatusDataUpdateCoordinator(hass, client, scan_interval),
         NodeInfoDataUpdateCoordinator: NodeInfoDataUpdateCoordinator(hass, client, scan_interval),
         RunnerInfoDataUpdateCoordinator: RunnerInfoDataUpdateCoordinator(hass, client, scan_interval)
