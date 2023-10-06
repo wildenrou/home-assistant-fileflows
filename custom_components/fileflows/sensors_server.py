@@ -47,6 +47,7 @@ class MemoryUsageServerSensor(ServerEntity, SensorEntity):
     _attr_native_unit_of_measurement = DATA_BYTES
     _attr_suggested_unit_of_measurement = DATA_MEGABYTES
     _attr_device_class = SensorDeviceClass.DATA_SIZE
+    _attr_suggested_display_precision = 1
 
     @property
     def unique_id(self):

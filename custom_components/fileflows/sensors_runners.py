@@ -66,6 +66,7 @@ class CurrentPartProgressRunnerSensor(RunnerEntity, SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Current Part Progress"
     _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_suggested_display_precision = 1
 
     @property
     def unique_id(self):
@@ -111,6 +112,7 @@ class FileOriginalSizeRunnerSensor(RunnerEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.DATA_SIZE
     _attr_native_unit_of_measurement = DATA_BYTES
     _attr_suggested_unit_of_measurement = DATA_GIGABYTES
+    _attr_suggested_display_precision = 2
 
     @property
     def unique_id(self):
