@@ -13,4 +13,4 @@ docker run --rm \
     -v $(pwd)/custom_components:/config/custom_components:ro \
     --user 1000:1000 \
     --name homeassistant \
-    homeassistant/home-assistant:2023.10.0
+    homeassistant/home-assistant:2024.6.1
