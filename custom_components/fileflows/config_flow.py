@@ -5,7 +5,7 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 import voluptuous as vol
 
 from .api import FileFlowsApiClient
-from .const import DOMAIN
+from .const import DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN, DOMAIN, CONF_CONNECTED_LAST_SEEN_TIMESPAN
 
 
 class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -36,7 +36,8 @@ class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_NAME, default=user_input.get(CONF_NAME) or ""): str,
                 vol.Required(CONF_URL, default=user_input.get(CONF_URL) or ""): TextSelector(TextSelectorConfig(type=TextSelectorType.URL)),
                 vol.Required(CONF_SCAN_INTERVAL, default=user_input.get(CONF_SCAN_INTERVAL) or 30): NumberSelector(NumberSelectorConfig(min=10, step=1, unit_of_measurement="s", mode=NumberSelectorMode.BOX)),
-                vol.Required(CONF_TIMEOUT, default=user_input.get(CONF_TIMEOUT) or 10): NumberSelector(NumberSelectorConfig(min=1, max=30, step=1, unit_of_measurement="s", mode=NumberSelectorMode.SLIDER))
+                vol.Required(CONF_TIMEOUT, default=user_input.get(CONF_TIMEOUT) or 10): NumberSelector(NumberSelectorConfig(min=1, max=30, step=1, unit_of_measurement="s", mode=NumberSelectorMode.SLIDER)),
+                vol.Required(CONF_CONNECTED_LAST_SEEN_TIMESPAN, default=user_input.get(CONF_CONNECTED_LAST_SEEN_TIMESPAN) or DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN): NumberSelector(NumberSelectorConfig(min=1, max=10, step=1, unit_of_measurement="mins", mode=NumberSelectorMode.BOX))
             }
         )
         return self.async_show_form(step_id="user", data_schema=data_schema, errors=errors)

@@ -8,7 +8,8 @@
           "name": "Name",
           "url": "URL",
           "scan_interval": "Poll Interval",
-          "timeout": "Timeout"
+          "timeout": "Timeout",
+          "connected_last_seen_timespan": "Show as disconnected when node not seen in"
         }
       }
     },

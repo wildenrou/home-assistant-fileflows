@@ -3,6 +3,10 @@ DOMAIN = "fileflows"
 
 PLATFORMS = ["sensor", "binary_sensor", "number", "switch", "update"]
 
+CONF_CONNECTED_LAST_SEEN_TIMESPAN = 'connected_last_seen_timespan'
+
+DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN = 2
+
 STATUS_MAP = {
     # Copy of enum from https://github.com/revenz/FileFlows/blob/master/Shared/Models/LibraryFile.cs
     # Required since API only returns non-zero counts

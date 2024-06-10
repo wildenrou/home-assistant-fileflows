@@ -4,7 +4,7 @@ from dateutil import parser
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
 
 from .coordinator import NodeInfoDataUpdateCoordinator
-from .const import DOMAIN
+from .const import CONF_CONNECTED_LAST_SEEN_TIMESPAN, DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN, DOMAIN
 from .entity import NodeEntity
 
 async def async_setup_entry(hass, entry, async_add_devices):
@@ -38,9 +38,9 @@ class ConnectedNodeBinarySensor(NodeEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        diff = self.__raw_value - datetime.datetime.now(datetime.timezone.utc)
-        # TODO: Move disconnected timeout to config
-        return bool(diff <= datetime.timedelta(minutes=1))
+        time_since_last_seen = datetime.datetime.now(datetime.timezone.utc) - self.__raw_value
+        last_seen_timespan_disconnected = datetime.timedelta(minutes=self._config_entry.data.get(CONF_CONNECTED_LAST_SEEN_TIMESPAN, DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN))
+        return bool(time_since_last_seen <= last_seen_timespan_disconnected)
 
     @property
     def icon(self) -> str | None:
