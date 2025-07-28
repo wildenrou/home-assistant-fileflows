@@ -1,0 +1,32 @@
+pause_processing:
+  name: Pause Processing
+  description: Pause FileFlows file processing
+  fields:
+    entity_id:
+      description: The FileFlows integration entity
+      example: "sensor.fileflows_queue"
+      selector:
+        entity:
+          integration: fileflows
+
+resume_processing:
+  name: Resume Processing
+  description: Resume FileFlows file processing
+  fields:
+    entity_id:
+      description: The FileFlows integration entity
+      example: "sensor.fileflows_queue"
+      selector:
+        entity:
+          integration: fileflows
+
+force_refresh:
+  name: Force Refresh
+  description: Force refresh FileFlows data
+  fields:
+    entity_id:
+      description: The FileFlows integration entity
+      example: "sensor.fileflows_queue"
+      selector:
+        entity:
+          integration: fileflows
