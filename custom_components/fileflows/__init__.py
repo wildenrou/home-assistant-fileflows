@@ -140,6 +140,50 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     
+    # Register services
+    async def pause_processing_service(call):
+        """Handle pause processing service call."""
+        try:
+            result = await api_client.pause_processing()
+            if result.get("success", True):
+                _LOGGER.info("FileFlows processing paused")
+                await coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to pause FileFlows processing: %s", result.get("error"))
+        except Exception as err:
+            _LOGGER.error("Error pausing FileFlows processing: %s", err)
+
+    async def resume_processing_service(call):
+        """Handle resume processing service call."""
+        try:
+            result = await api_client.resume_processing()
+            if result.get("success", True):
+                _LOGGER.info("FileFlows processing resumed")
+                await coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to resume FileFlows processing: %s", result.get("error"))
+        except Exception as err:
+            _LOGGER.error("Error resuming FileFlows processing: %s", err)
+
+    async def force_refresh_service(call):
+        """Handle force refresh service call."""
+        try:
+            await coordinator.async_request_refresh()
+            _LOGGER.info("FileFlows data refresh requested")
+        except Exception as err:
+            _LOGGER.error("Error refreshing FileFlows data: %s", err)
+
+    # Register the services
+    hass.services.async_register(
+        DOMAIN, "pause_processing", pause_processing_service
+    )
+    hass.services.async_register(
+        DOMAIN, "resume_processing", resume_processing_service
+    )
+    hass.services.async_register(
+        DOMAIN, "force_refresh", force_refresh_service
+    )
+    
     _LOGGER.info("FileFlows integration setup completed for %s:%s", host, port)
     return True
 
@@ -152,7 +196,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         # Clean up data (don't close session since it's managed by Home Assistant)
         data = hass.data[DOMAIN].pop(entry.entry_id)
-        # The session is managed by Home Assistant, so we don't need to close it
+        
+        # Unregister services if this is the last entry
+        if not hass.data[DOMAIN]:  # No more FileFlows integrations
+            hass.services.async_remove(DOMAIN, "pause_processing")
+            hass.services.async_remove(DOMAIN, "resume_processing")
+            hass.services.async_remove(DOMAIN, "force_refresh")
         
         _LOGGER.info("FileFlows integration unloaded")
     
