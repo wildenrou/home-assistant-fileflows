@@ -161,3 +161,60 @@ class FileFlowsProcessingBinarySensor(FileFlowsBaseBinarySensor):
             })
         
         return attributes
+
+
+class FileFlowsNodesActiveBinarySensor(FileFlowsBaseBinarySensor):
+    """Binary sensor for active processing nodes."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows Nodes Active"
+        self._attr_unique_id = f"{self._host}_{self._port}_nodes_active"
+        self._attr_device_class = BinarySensorDeviceClass.RUNNING
+        self._attr_icon = "mdi:server-network"
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "nodes" in self.coordinator.data
+            and "error" not in self.coordinator.data.get("nodes", {})
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if there are active nodes."""
+        if not self.available:
+            return False
+        
+        nodes_data = self.coordinator.data.get("nodes", {})
+        nodes = nodes_data.get("nodes", nodes_data.get("workers", []))
+        
+        if isinstance(nodes, list):
+            active_nodes = [n for n in nodes if n.get("enabled", True)]
+            return len(active_nodes) > 0
+        
+        return False
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return additional state attributes."""
+        if not self.available:
+            return {}
+        
+        nodes_data = self.coordinator.data.get("nodes", {})
+        nodes = nodes_data.get("nodes", nodes_data.get("workers", []))
+        
+        if isinstance(nodes, list):
+            active_nodes = [n for n in nodes if n.get("enabled", True)]
+            return {
+                "total_nodes": len(nodes),
+                "active_nodes": len(active_nodes),
+                "node_names": [n.get("name", "Unknown") for n in active_nodes],
+                "last_updated": self.coordinator.last_update_success_time,
+            }
+        
+        return {}
