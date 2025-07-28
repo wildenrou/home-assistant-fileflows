@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "FileFlows Integration Setup",
+        "description": "Configure your FileFlows server connection. You can either provide a full URL or specify host and port separately.",
+        "data": {
+          "name": "Integration Name",
+          "url": "FileFlows URL (optional)",
+          "host": "Host IP Address (optional)",
+          "port": "Port",
+          "api_key": "API Key (Optional)",
+          "scan_interval": "Scan Interval",
+          "timeout": "Connection Timeout",
+          "connected_last_seen_timespan": "Connected Last Seen Timespan"
+        },
+        "data_description": {
+          "name": "A friendly name for this FileFlows integration",
+          "url": "Full URL to FileFlows (e.g., http://192.168.1.18:8585) - Use this OR host/port",
+          "host": "The IP address of your FileFlows server (e.g., 192.168.1.18) - Use this if not using URL",
+          "port": "The port FileFlows is running on (default: 8585)",
+          "api_key": "API key from FileFlows Settings > Security (if enabled)",
+          "scan_interval": "How often to update data from FileFlows (seconds)",
+          "timeout": "Connection timeout for API requests (seconds)",
+          "connected_last_seen_timespan": "How long to consider nodes as connected (minutes)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to FileFlows server. Check URL/host and port.",
+      "invalid_host": "Invalid host configuration or API error.",
+      "unknown": "Unknown error occurred during setup."
+    },
+    "abort": {
+      "already_configured": "This FileFlows server is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "queue": {
+        "name": "Queue"
+      },
+      "processing": {
+        "name": "Processing"
+      },
+      "processed": {
+        "name": "Processed"
+      },
+      "processing_time": {
+        "name": "Processing Time"
+      },
+      "processing_files": {
+        "name": "Processing Files"
+      }
+    },
+    "binary_sensor": {
+      "status": {
+        "name": "Status"
+      },
+      "processing_active": {
+        "name": "Processing Active"
+      }
+    }
+  }
+}
