@@ -1,47 +1,162 @@
+"""FileFlows binary sensor platform."""
+from __future__ import annotations
 
-import datetime
-from dateutil import parser
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
+import logging
+from typing import Any, Dict
 
-from .coordinator import NodeInfoDataUpdateCoordinator
-from .const import CONF_CONNECTED_LAST_SEEN_TIMESPAN, DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN, DOMAIN
-from .entity import NodeEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorEntity,
+    BinarySensorDeviceClass,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-async def async_setup_entry(hass, entry, async_add_devices):
-    # TODO: Work out how to add new nodes as they appear
-    node_info_coordinator = hass.data[DOMAIN][entry.entry_id][NodeInfoDataUpdateCoordinator]
-    for node in node_info_coordinator.data:
-        async_add_devices([
-            ConnectedNodeBinarySensor(node_info_coordinator, entry, node["Uid"])
-        ])
+from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
-class ConnectedNodeBinarySensor(NodeEntity, BinarySensorEntity):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up FileFlows binary sensor based on a config entry."""
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
+    
+    # Create binary sensors
+    sensors = [
+        FileFlowsStatusBinarySensor(coordinator, config_entry),
+        FileFlowsProcessingBinarySensor(coordinator, config_entry),
+    ]
+    
+    async_add_entities(sensors, update_before_add=True)
 
-    _attr_has_entity_name = True
-    _attr_name = "Connected"
-    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+class FileFlowsBaseBinarySensor(CoordinatorEntity, BinarySensorEntity):
+    """Base class for FileFlows binary sensors."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator)
+        self._config_entry = config_entry
+        self._host = config_entry.data[CONF_HOST]
+        self._port = config_entry.data.get(CONF_PORT, 8585)
 
     @property
-    def unique_id(self):
-        return f"{self._unique_id_prefix}_connected"
+    def device_info(self) -> DeviceInfo:
+        """Return device information."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, f"{self._host}_{self._port}")},
+            name=f"FileFlows ({self._host})",
+            manufacturer="FileFlows",
+            model="FileFlows Server",
+            sw_version="Unknown",
+            configuration_url=f"http://{self._host}:{self._port}",
+        )
+
+
+class FileFlowsStatusBinarySensor(FileFlowsBaseBinarySensor):
+    """Binary sensor for FileFlows server status."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows Status"
+        self._attr_unique_id = f"{self._host}_{self._port}_status"
+        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+        self._attr_icon = "mdi:server"
 
     @property
-    def __raw_value(self) -> datetime:
-        return parser.parse(self._data.get("LastSeen"))
+    def is_on(self) -> bool:
+        """Return True if the server is online."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "status" in self.coordinator.data
+            and "error" not in self.coordinator.data.get("status", {})
+        )
 
     @property
-    def extra_state_attributes(self):
-        return super().extra_state_attributes | {
-            "last_seen": self.__raw_value
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return additional state attributes."""
+        if not self.coordinator.last_update_success:
+            return {"status": "offline", "error": "Connection failed"}
+        
+        if self.coordinator.data is None:
+            return {"status": "offline", "error": "No data"}
+        
+        status_data = self.coordinator.data.get("status", {})
+        if "error" in status_data:
+            return {"status": "offline", "error": status_data["error"]}
+        
+        return {
+            "status": "online",
+            "last_updated": self.coordinator.last_update_success_time,
+            "queue": status_data.get("queue"),
+            "processing": status_data.get("processing"),
+            "processed": status_data.get("processed"),
         }
 
-    @property
-    def is_on(self) -> bool | None:
-        time_since_last_seen = datetime.datetime.now(datetime.timezone.utc) - self.__raw_value
-        last_seen_timespan_disconnected = datetime.timedelta(minutes=self._config_entry.data.get(CONF_CONNECTED_LAST_SEEN_TIMESPAN, DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN))
-        return bool(time_since_last_seen <= last_seen_timespan_disconnected)
+
+class FileFlowsProcessingBinarySensor(FileFlowsBaseBinarySensor):
+    """Binary sensor for FileFlows processing status."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows Processing Active"
+        self._attr_unique_id = f"{self._host}_{self._port}_processing_active"
+        self._attr_device_class = BinarySensorDeviceClass.RUNNING
+        self._attr_icon = "mdi:cog"
 
     @property
-    def icon(self) -> str | None:
-        return "mdi:check-network-outline" if self.is_on else "mdi:close-network-outline"
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "status" in self.coordinator.data
+            and "error" not in self.coordinator.data.get("status", {})
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if FileFlows is currently processing files."""
+        if not self.available:
+            return False
+        
+        status_data = self.coordinator.data.get("status", {})
+        processing = status_data.get("processing", 0)
+        return processing > 0
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return additional state attributes."""
+        if not self.available:
+            return {}
+        
+        status_data = self.coordinator.data.get("status", {})
+        processing_files = status_data.get("processingFiles", [])
+        
+        attributes = {
+            "processing_count": status_data.get("processing", 0),
+            "queue_count": status_data.get("queue", 0),
+            "last_updated": self.coordinator.last_update_success_time,
+        }
+        
+        # Add current processing file info
+        if processing_files:
+            current_file = processing_files[0]
+            attributes.update({
+                "current_file": current_file.get("name", "Unknown"),
+                "current_step": current_file.get("step", "Unknown"),
+                "current_percent": current_file.get("stepPercent", 0),
+                "current_library": current_file.get("library", "Unknown"),
+            })
+        
+        return attributes
