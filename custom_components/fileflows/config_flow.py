@@ -1,8 +1,8 @@
-"""Config flow for FileFlows integration."""
+"""Config flow for FileFlows integration - Conservative version."""
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from urllib.parse import urlparse
 
 import voluptuous as vol
@@ -37,22 +37,27 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     """Validate the user input allows us to connect."""
     
     # Extract host and port from URL if provided, or use direct host/port
-    if CONF_URL in data and data[CONF_URL]:
-        # Parse URL to extract host and port
-        parsed = urlparse(data[CONF_URL])
-        host = parsed.hostname
-        port = parsed.port or 8585
-        if not host:
-            raise InvalidHost("Invalid URL format")
+    if CONF_URL in data and data[CONF_URL].strip():
+        try:
+            parsed = urlparse(data[CONF_URL].strip())
+            host = parsed.hostname
+            port = parsed.port or 8585
+            if not host:
+                raise InvalidHost("Invalid URL format - could not extract hostname")
+        except Exception as err:
+            raise InvalidHost(f"Invalid URL format: {err}") from err
     else:
         # Use direct host/port configuration
-        host = data.get(CONF_HOST)
+        host = data.get(CONF_HOST, "").strip()
         port = data.get(CONF_PORT, 8585)
         if not host:
-            raise InvalidHost("Host is required")
+            raise InvalidHost("Host is required when URL is not provided")
     
-    timeout = data.get(CONF_TIMEOUT, 10)
-    api_key = data.get(CONF_API_KEY)
+    # Clean up API key
+    api_key = data.get(CONF_API_KEY, "").strip() or None
+    
+    _LOGGER.debug("Validating connection to %s:%s (API key: %s)", 
+                  host, port, "provided" if api_key else "not provided")
     
     # Create API client with session from Home Assistant
     session = async_create_clientsession(hass)
@@ -66,13 +71,17 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     try:
         # Test connection using the status endpoint
         if not await api_client.test_connection():
-            raise CannotConnect("Unable to connect to FileFlows server")
+            raise CannotConnect(f"Unable to connect to FileFlows server at {host}:{port}")
         
-        # Get server info for unique ID
+        # Get server info for validation
         status = await api_client.get_status()
+        _LOGGER.debug("Got status data: %s", status)
         
         # Create title and unique ID
-        name = data.get(CONF_NAME, f"FileFlows ({host})")
+        name = data.get(CONF_NAME, f"FileFlows ({host})").strip()
+        if not name:
+            name = f"FileFlows ({host})"
+            
         unique_id = f"{host}_{port}"
         
         return {
@@ -85,16 +94,13 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         
     except FileFlowsApiError as err:
         _LOGGER.error("API error during validation: %s", err)
-        if "timeout" in str(err).lower():
-            raise CannotConnect("Timeout connecting to FileFlows server") from err
+        if "timeout" in str(err).lower() or "connection" in str(err).lower():
+            raise CannotConnect(f"Cannot connect to FileFlows server: {err}") from err
         else:
-            raise InvalidHost("Invalid host or API configuration") from err
+            raise InvalidHost(f"Invalid response from FileFlows server: {err}") from err
     except Exception as err:
         _LOGGER.error("Unexpected error during validation: %s", err)
-        raise CannotConnect("Unexpected error connecting to FileFlows") from err
-    finally:
-        # Don't close the session here since it's managed by Home Assistant
-        pass
+        raise CannotConnect(f"Unexpected error connecting to FileFlows: {err}") from err
 
 
 class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -139,7 +145,7 @@ class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(
                     CONF_NAME, 
-                    default=user_input.get(CONF_NAME, "")
+                    default=user_input.get(CONF_NAME, "FileFlows Server")
                 ): str,
                 
                 vol.Optional(
@@ -172,7 +178,8 @@ class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     default=user_input.get(CONF_SCAN_INTERVAL, 30)
                 ): NumberSelector(NumberSelectorConfig(
                     min=10, 
-                    step=1, 
+                    max=300,
+                    step=5, 
                     unit_of_measurement="s", 
                     mode=NumberSelectorMode.BOX
                 )),
@@ -181,8 +188,8 @@ class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_TIMEOUT, 
                     default=user_input.get(CONF_TIMEOUT, 10)
                 ): NumberSelector(NumberSelectorConfig(
-                    min=1, 
-                    max=30, 
+                    min=5, 
+                    max=60, 
                     step=1, 
                     unit_of_measurement="s", 
                     mode=NumberSelectorMode.SLIDER
@@ -193,7 +200,7 @@ class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     default=user_input.get(CONF_CONNECTED_LAST_SEEN_TIMESPAN, DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN)
                 ): NumberSelector(NumberSelectorConfig(
                     min=1, 
-                    max=10, 
+                    max=30, 
                     step=1, 
                     unit_of_measurement="mins", 
                     mode=NumberSelectorMode.BOX
@@ -208,31 +215,9 @@ class FileFlowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "url_example": "http://192.168.1.18:8585",
                 "host_example": "192.168.1.18",
-                "port_example": "8585",
+                "api_key_note": "Leave blank - most FileFlows installations don't require authentication",
             },
         )
-
-    async def __test_connection(self, url: str, timeout: int) -> bool:
-        """Return true if connection is successful (legacy method for compatibility)."""
-        try:
-            # Parse URL to get host and port
-            parsed = urlparse(url)
-            host = parsed.hostname
-            port = parsed.port or 8585
-            
-            if not host:
-                return False
-            
-            # Create API client
-            session = async_create_clientsession(self.hass)
-            client = FileFlowsApiClient(host=host, port=port, session=session)
-            
-            # Test connection
-            return await client.test_connection()
-            
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Connection test failed")
-            return False
 
 
 class CannotConnect(HomeAssistantError):
