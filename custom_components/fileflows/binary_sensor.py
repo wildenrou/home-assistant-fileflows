@@ -32,6 +32,7 @@ async def async_setup_entry(
     sensors = [
         FileFlowsStatusBinarySensor(coordinator, config_entry),
         FileFlowsProcessingBinarySensor(coordinator, config_entry),
+        FileFlowsNodesActiveBinarySensor(coordinator, config_entry),
     ]
     
     async_add_entities(sensors, update_before_add=True)
