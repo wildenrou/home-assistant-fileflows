@@ -3,23 +3,23 @@
     "step": {
       "user": {
         "title": "FileFlows Integration Setup",
-        "description": "Configure your FileFlows server connection. You can either provide a full URL or specify host and port separately.",
+        "description": "Connect to your FileFlows server. Most installations don't require authentication.",
         "data": {
           "name": "Integration Name",
-          "url": "FileFlows URL (optional)",
-          "host": "Host IP Address (optional)",
-          "port": "Port",
-          "api_key": "API Key (Optional)",
-          "scan_interval": "Scan Interval",
+          "url": "FileFlows URL (Recommended)",
+          "host": "Host IP Address",
+          "port": "Port", 
+          "api_key": "API Key (Usually Not Required)",
+          "scan_interval": "Update Interval",
           "timeout": "Connection Timeout",
           "connected_last_seen_timespan": "Connected Last Seen Timespan"
         },
         "data_description": {
           "name": "A friendly name for this FileFlows integration",
-          "url": "Full URL to FileFlows (e.g., http://192.168.1.18:8585) - Use this OR host/port",
+          "url": "Full URL to FileFlows (e.g., http://192.168.1.18:8585) - Use this OR specify host/port separately",
           "host": "The IP address of your FileFlows server (e.g., 192.168.1.18) - Use this if not using URL",
-          "port": "The port FileFlows is running on (default: 8585)",
-          "api_key": "API key from FileFlows Settings > Security (if enabled)",
+          "port": "The port FileFlows is running on (commonly 8585 or 19200)",
+          "api_key": "Leave blank - most FileFlows installations don't require authentication",
           "scan_interval": "How often to update data from FileFlows (seconds)",
           "timeout": "Connection timeout for API requests (seconds)",
           "connected_last_seen_timespan": "How long to consider nodes as connected (minutes)"
@@ -27,12 +27,12 @@
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to FileFlows server. Check URL/host and port.",
-      "invalid_host": "Invalid host configuration or API error.",
-      "unknown": "Unknown error occurred during setup."
+      "cannot_connect": "Cannot connect to FileFlows server. Verify the URL/host, port, and that FileFlows is running.",
+      "invalid_host": "Invalid host configuration. Check your URL format or host/port settings.",
+      "unknown": "An unexpected error occurred. Check the logs for details."
     },
     "abort": {
-      "already_configured": "This FileFlows server is already configured."
+      "already_configured": "This FileFlows server is already configured in Home Assistant."
     }
   },
   "entity": {
