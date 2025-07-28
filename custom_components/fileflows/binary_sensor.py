@@ -1,4 +1,4 @@
-"""FileFlows binary sensor platform."""
+"""FileFlows binary sensor platform - Conservative version."""
 from __future__ import annotations
 
 import logging
@@ -28,11 +28,10 @@ async def async_setup_entry(
     """Set up FileFlows binary sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
     
-    # Create binary sensors
+    # Create only binary sensors based on confirmed status data
     sensors = [
         FileFlowsStatusBinarySensor(coordinator, config_entry),
         FileFlowsProcessingBinarySensor(coordinator, config_entry),
-        FileFlowsNodesActiveBinarySensor(coordinator, config_entry),
     ]
     
     async_add_entities(sensors, update_before_add=True)
@@ -45,8 +44,17 @@ class FileFlowsBaseBinarySensor(CoordinatorEntity, BinarySensorEntity):
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self._config_entry = config_entry
-        self._host = config_entry.data[CONF_HOST]
-        self._port = config_entry.data.get(CONF_PORT, 8585)
+        
+        # Get host/port from config
+        config_data = config_entry.data
+        if "url" in config_data and config_data["url"]:
+            from urllib.parse import urlparse
+            parsed = urlparse(config_data["url"])
+            self._host = parsed.hostname or "unknown"
+            self._port = parsed.port or 8585
+        else:
+            self._host = config_data.get(CONF_HOST, config_data.get("host", "unknown"))
+            self._port = config_data.get(CONF_PORT, config_data.get("port", 8585))
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -79,28 +87,26 @@ class FileFlowsStatusBinarySensor(FileFlowsBaseBinarySensor):
             self.coordinator.last_update_success
             and self.coordinator.data is not None
             and "status" in self.coordinator.data
-            and "error" not in self.coordinator.data.get("status", {})
+            and isinstance(self.coordinator.data["status"], dict)
         )
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         """Return additional state attributes."""
-        if not self.coordinator.last_update_success:
-            return {"status": "offline", "error": "Connection failed"}
-        
-        if self.coordinator.data is None:
-            return {"status": "offline", "error": "No data"}
+        if not self.is_on:
+            return {
+                "status": "offline",
+                "error": "Connection failed or invalid data"
+            }
         
         status_data = self.coordinator.data.get("status", {})
-        if "error" in status_data:
-            return {"status": "offline", "error": status_data["error"]}
-        
         return {
             "status": "online",
             "last_updated": self.coordinator.last_update_success_time,
             "queue": status_data.get("queue"),
             "processing": status_data.get("processing"),
             "processed": status_data.get("processed"),
+            "time": status_data.get("time"),
         }
 
 
@@ -122,7 +128,7 @@ class FileFlowsProcessingBinarySensor(FileFlowsBaseBinarySensor):
             self.coordinator.last_update_success
             and self.coordinator.data is not None
             and "status" in self.coordinator.data
-            and "error" not in self.coordinator.data.get("status", {})
+            and isinstance(self.coordinator.data["status"], dict)
         )
 
     @property
@@ -133,6 +139,14 @@ class FileFlowsProcessingBinarySensor(FileFlowsBaseBinarySensor):
         
         status_data = self.coordinator.data.get("status", {})
         processing = status_data.get("processing", 0)
+        
+        # Convert to int if it's a string
+        if isinstance(processing, str):
+            try:
+                processing = int(processing)
+            except (ValueError, TypeError):
+                processing = 0
+                
         return processing > 0
 
     @property
@@ -150,71 +164,15 @@ class FileFlowsProcessingBinarySensor(FileFlowsBaseBinarySensor):
             "last_updated": self.coordinator.last_update_success_time,
         }
         
-        # Add current processing file info
-        if processing_files:
+        # Add current processing file info if available
+        if isinstance(processing_files, list) and processing_files:
             current_file = processing_files[0]
-            attributes.update({
-                "current_file": current_file.get("name", "Unknown"),
-                "current_step": current_file.get("step", "Unknown"),
-                "current_percent": current_file.get("stepPercent", 0),
-                "current_library": current_file.get("library", "Unknown"),
-            })
+            if isinstance(current_file, dict):
+                attributes.update({
+                    "current_file": current_file.get("name", "Unknown"),
+                    "current_step": current_file.get("step", "Unknown"),
+                    "current_percent": current_file.get("stepPercent", 0),
+                    "current_library": current_file.get("library", "Unknown"),
+                })
         
         return attributes
-
-
-class FileFlowsNodesActiveBinarySensor(FileFlowsBaseBinarySensor):
-    """Binary sensor for active processing nodes."""
-
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
-        """Initialize the binary sensor."""
-        super().__init__(coordinator, config_entry)
-        self._attr_name = f"FileFlows Nodes Active"
-        self._attr_unique_id = f"{self._host}_{self._port}_nodes_active"
-        self._attr_device_class = BinarySensorDeviceClass.RUNNING
-        self._attr_icon = "mdi:server-network"
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return (
-            self.coordinator.last_update_success
-            and self.coordinator.data is not None
-            and "nodes" in self.coordinator.data
-            and "error" not in self.coordinator.data.get("nodes", {})
-        )
-
-    @property
-    def is_on(self) -> bool:
-        """Return True if there are active nodes."""
-        if not self.available:
-            return False
-        
-        nodes_data = self.coordinator.data.get("nodes", {})
-        nodes = nodes_data.get("nodes", nodes_data.get("workers", []))
-        
-        if isinstance(nodes, list):
-            active_nodes = [n for n in nodes if n.get("enabled", True)]
-            return len(active_nodes) > 0
-        
-        return False
-
-    @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
-        """Return additional state attributes."""
-        if not self.available:
-            return {}
-        
-        nodes_data = self.coordinator.data.get("nodes", {})
-        nodes = nodes_data.get("nodes", nodes_data.get("workers", []))
-        
-        if isinstance(nodes, list):
-            active_nodes = [n for n in nodes if n.get("enabled", True)]
-            return {
-                "total_nodes": len(nodes),
-                "active_nodes": len(active_nodes),
-                "node_names": [n.get("name", "Unknown") for n in active_nodes],
-                "last_updated": self.coordinator.last_update_success_time,
-            }
-        
-        return {}
