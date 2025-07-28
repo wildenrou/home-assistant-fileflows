@@ -1,24 +1,38 @@
-NAME = "FileFlows"
+"""Constants for the FileFlows integration."""
+
 DOMAIN = "fileflows"
 
-PLATFORMS = ["sensor", "binary_sensor", "number", "switch", "update"]
+# Configuration keys
+CONF_API_KEY = "api_key"
 
-CONF_CONNECTED_LAST_SEEN_TIMESPAN = 'connected_last_seen_timespan'
+# Default values
+DEFAULT_PORT = 8585  # Updated to match user's FileFlows setup
+DEFAULT_SCAN_INTERVAL = 30
 
-DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN = 2
-
-STATUS_MAP = {
-    # Copy of enum from https://github.com/revenz/FileFlows/blob/master/Shared/Models/LibraryFile.cs
-    # Required since API only returns non-zero counts
-    -3: "On Hold",
-    -2: "Disabled",
-    -1: "Out of Schedule",
-    0: "Unprocessed",
-    1: "Processed",
-    2: "Processing",
-    3: "Flow Not Found",
-    4: "Failed",
-    5: "Duplicate",
-    6: "Mapping Issue",
-    7: "Missing Library"
+# Sensor types
+SENSOR_TYPES = {
+    "status": {
+        "name": "Status",
+        "icon": "mdi:server",
+        "device_class": None,
+        "key": "status",
+    },
+    "queue_count": {
+        "name": "Queue Count", 
+        "icon": "mdi:format-list-numbered",
+        "device_class": None,
+        "key": "queue_count",
+    },
+    "processing_count": {
+        "name": "Processing Count",
+        "icon": "mdi:cog",
+        "device_class": None,
+        "key": "processing_count",
+    },
+    "worker_count": {
+        "name": "Worker Count",
+        "icon": "mdi:worker",
+        "device_class": None,
+        "key": "worker_count",
+    },
 }
