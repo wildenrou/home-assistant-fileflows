@@ -1,0 +1,8 @@
+{
+  "name": "FileFlows",
+  "content_in_root": false,
+  "filename": "fileflows",
+  "country": ["US", "GB", "CA", "AU", "DE", "FR", "IT", "ES", "NL", "BE", "CH", "AT", "SE", "NO", "DK", "FI"],
+  "homeassistant": "2023.1.0",
+  "render_readme": true
+}
