@@ -1,4 +1,4 @@
-"""FileFlows sensor platform."""
+"""Enhanced FileFlows sensor platform with additional sensors."""
 from __future__ import annotations
 
 import logging
@@ -29,13 +29,21 @@ async def async_setup_entry(
     """Set up FileFlows sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
     
-    # Create sensors based on the actual API response structure
+    # Create sensors based on available data
     sensors = [
+        # Core status sensors
         FileFlowsQueueSensor(coordinator, config_entry),
         FileFlowsProcessingSensor(coordinator, config_entry),
         FileFlowsProcessedSensor(coordinator, config_entry),
         FileFlowsTimeSensor(coordinator, config_entry),
         FileFlowsProcessingFilesSensor(coordinator, config_entry),
+        
+        # Additional sensors for enhanced data
+        FileFlowsSystemStatusSensor(coordinator, config_entry),
+        FileFlowsNodeCountSensor(coordinator, config_entry),
+        FileFlowsFlowCountSensor(coordinator, config_entry),
+        FileFlowsLibraryCountSensor(coordinator, config_entry),
+        FileFlowsPluginCountSensor(coordinator, config_entry),
     ]
     
     async_add_entities(sensors, update_before_add=True)
@@ -48,18 +56,25 @@ class FileFlowsBaseSensor(CoordinatorEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._config_entry = config_entry
-        self._host = config_entry.data[CONF_HOST]
-        self._port = config_entry.data.get(CONF_PORT, 8585)
+        self._host = config_entry.data.get(CONF_HOST, config_entry.data.get("host", "unknown"))
+        self._port = config_entry.data.get(CONF_PORT, config_entry.data.get("port", 8585))
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information."""
+        # Try to get version from system_info if available
+        version = "Unknown"
+        if (self.coordinator.data and 
+            "system_info" in self.coordinator.data and 
+            "version" in self.coordinator.data["system_info"]):
+            version = self.coordinator.data["system_info"]["version"]
+        
         return DeviceInfo(
             identifiers={(DOMAIN, f"{self._host}_{self._port}")},
             name=f"FileFlows ({self._host})",
             manufacturer="FileFlows",
             model="FileFlows Server",
-            sw_version="Unknown",
+            sw_version=version,
             configuration_url=f"http://{self._host}:{self._port}",
         )
 
@@ -74,6 +89,7 @@ class FileFlowsBaseSensor(CoordinatorEntity, SensorEntity):
         )
 
 
+# Core sensors (existing)
 class FileFlowsQueueSensor(FileFlowsBaseSensor):
     """Sensor for queue count."""
 
@@ -84,6 +100,7 @@ class FileFlowsQueueSensor(FileFlowsBaseSensor):
         self._attr_unique_id = f"{self._host}_{self._port}_queue"
         self._attr_icon = "mdi:format-list-numbered"
         self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "files"
 
     @property
     def native_value(self) -> Optional[int]:
@@ -93,18 +110,6 @@ class FileFlowsQueueSensor(FileFlowsBaseSensor):
         
         status_data = self.coordinator.data.get("status", {})
         return status_data.get("queue")
-
-    @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
-        """Return additional state attributes."""
-        if not self.available:
-            return {}
-        
-        status_data = self.coordinator.data.get("status", {})
-        return {
-            "unit": "files",
-            "last_updated": self.coordinator.last_update_success_time,
-        }
 
 
 class FileFlowsProcessingSensor(FileFlowsBaseSensor):
@@ -117,6 +122,7 @@ class FileFlowsProcessingSensor(FileFlowsBaseSensor):
         self._attr_unique_id = f"{self._host}_{self._port}_processing"
         self._attr_icon = "mdi:cog"
         self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "files"
 
     @property
     def native_value(self) -> Optional[int]:
@@ -126,18 +132,6 @@ class FileFlowsProcessingSensor(FileFlowsBaseSensor):
         
         status_data = self.coordinator.data.get("status", {})
         return status_data.get("processing")
-
-    @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
-        """Return additional state attributes."""
-        if not self.available:
-            return {}
-        
-        status_data = self.coordinator.data.get("status", {})
-        return {
-            "unit": "files",
-            "last_updated": self.coordinator.last_update_success_time,
-        }
 
 
 class FileFlowsProcessedSensor(FileFlowsBaseSensor):
@@ -150,6 +144,7 @@ class FileFlowsProcessedSensor(FileFlowsBaseSensor):
         self._attr_unique_id = f"{self._host}_{self._port}_processed"
         self._attr_icon = "mdi:check-circle"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_native_unit_of_measurement = "files"
 
     @property
     def native_value(self) -> Optional[int]:
@@ -159,17 +154,6 @@ class FileFlowsProcessedSensor(FileFlowsBaseSensor):
         
         status_data = self.coordinator.data.get("status", {})
         return status_data.get("processed")
-
-    @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
-        """Return additional state attributes."""
-        if not self.available:
-            return {}
-        
-        return {
-            "unit": "files",
-            "last_updated": self.coordinator.last_update_success_time,
-        }
 
 
 class FileFlowsTimeSensor(FileFlowsBaseSensor):
@@ -199,7 +183,7 @@ class FileFlowsTimeSensor(FileFlowsBaseSensor):
         
         return {
             "format": "HH:MM",
-            "last_updated": self.coordinator.last_update_success_time,
+            "description": "Total processing time",
         }
 
 
@@ -212,6 +196,8 @@ class FileFlowsProcessingFilesSensor(FileFlowsBaseSensor):
         self._attr_name = f"FileFlows Processing Files"
         self._attr_unique_id = f"{self._host}_{self._port}_processing_files"
         self._attr_icon = "mdi:file-cog"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "files"
 
     @property
     def native_value(self) -> Optional[int]:
@@ -232,13 +218,10 @@ class FileFlowsProcessingFilesSensor(FileFlowsBaseSensor):
         status_data = self.coordinator.data.get("status", {})
         processing_files = status_data.get("processingFiles", [])
         
-        attributes = {
-            "files": [],
-            "last_updated": self.coordinator.last_update_success_time,
-        }
+        attributes = {"files": []}
         
-        # Add details about each processing file
-        for i, file_info in enumerate(processing_files):
+        # Add details about each processing file (limit to 5 for performance)
+        for i, file_info in enumerate(processing_files[:5]):
             file_data = {
                 "name": file_info.get("name", "Unknown"),
                 "relative_path": file_info.get("relativePath", ""),
@@ -248,7 +231,7 @@ class FileFlowsProcessingFilesSensor(FileFlowsBaseSensor):
             }
             attributes["files"].append(file_data)
             
-            # Also add individual file attributes (for first file)
+            # Add current file attributes (for first file)
             if i == 0:
                 attributes.update({
                     "current_file": file_data["name"],
@@ -258,3 +241,196 @@ class FileFlowsProcessingFilesSensor(FileFlowsBaseSensor):
                 })
         
         return attributes
+
+
+# Enhanced sensors for additional data
+class FileFlowsSystemStatusSensor(FileFlowsBaseSensor):
+    """Sensor for system status and version."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows System Status"
+        self._attr_unique_id = f"{self._host}_{self._port}_system_status"
+        self._attr_icon = "mdi:server"
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the system status."""
+        if not self.available:
+            return "offline"
+        
+        # If we have system info, check for specific status
+        if "system_info" in self.coordinator.data:
+            system_info = self.coordinator.data["system_info"]
+            if "error" not in system_info:
+                return "online"
+        
+        return "online"  # If status endpoint works, system is online
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return additional state attributes."""
+        if not self.available:
+            return {}
+        
+        attributes = {}
+        
+        # Add system info if available
+        if "system_info" in self.coordinator.data:
+            system_info = self.coordinator.data["system_info"]
+            if "error" not in system_info:
+                attributes.update({
+                    "version": system_info.get("version", "Unknown"),
+                    "build": system_info.get("build", "Unknown"),
+                })
+        
+        return attributes
+
+
+class FileFlowsNodeCountSensor(FileFlowsBaseSensor):
+    """Sensor for number of processing nodes."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows Nodes"
+        self._attr_unique_id = f"{self._host}_{self._port}_nodes"
+        self._attr_icon = "mdi:server-network"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "nodes"
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return (
+            super().available and
+            "nodes" in self.coordinator.data and
+            "error" not in self.coordinator.data.get("nodes", {})
+        )
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the number of nodes."""
+        if not self.available:
+            return None
+        
+        nodes_data = self.coordinator.data.get("nodes", {})
+        nodes = nodes_data.get("nodes", nodes_data.get("workers", []))
+        return len(nodes) if isinstance(nodes, list) else 0
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return additional state attributes."""
+        if not self.available:
+            return {}
+        
+        nodes_data = self.coordinator.data.get("nodes", {})
+        nodes = nodes_data.get("nodes", nodes_data.get("workers", []))
+        
+        if isinstance(nodes, list) and nodes:
+            active_nodes = [n for n in nodes if n.get("enabled", True)]
+            return {
+                "total_nodes": len(nodes),
+                "active_nodes": len(active_nodes),
+                "nodes": [{"name": n.get("name", "Unknown"), 
+                          "enabled": n.get("enabled", True)} for n in nodes[:10]]
+            }
+        
+        return {}
+
+
+class FileFlowsFlowCountSensor(FileFlowsBaseSensor):
+    """Sensor for number of configured flows."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows Flows"
+        self._attr_unique_id = f"{self._host}_{self._port}_flows"
+        self._attr_icon = "mdi:workflow"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "flows"
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return (
+            super().available and
+            "flows" in self.coordinator.data and
+            "error" not in self.coordinator.data.get("flows", {})
+        )
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the number of flows."""
+        if not self.available:
+            return None
+        
+        flows_data = self.coordinator.data.get("flows", {})
+        flows = flows_data.get("flows", [])
+        return len(flows) if isinstance(flows, list) else 0
+
+
+class FileFlowsLibraryCountSensor(FileFlowsBaseSensor):
+    """Sensor for number of configured libraries."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows Libraries"
+        self._attr_unique_id = f"{self._host}_{self._port}_libraries"
+        self._attr_icon = "mdi:library"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "libraries"
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return (
+            super().available and
+            "libraries" in self.coordinator.data and
+            "error" not in self.coordinator.data.get("libraries", {})
+        )
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the number of libraries."""
+        if not self.available:
+            return None
+        
+        libraries_data = self.coordinator.data.get("libraries", {})
+        libraries = libraries_data.get("libraries", [])
+        return len(libraries) if isinstance(libraries, list) else 0
+
+
+class FileFlowsPluginCountSensor(FileFlowsBaseSensor):
+    """Sensor for number of installed plugins."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_name = f"FileFlows Plugins"
+        self._attr_unique_id = f"{self._host}_{self._port}_plugins"
+        self._attr_icon = "mdi:puzzle"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_native_unit_of_measurement = "plugins"
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return (
+            super().available and
+            "plugins" in self.coordinator.data and
+            "error" not in self.coordinator.data.get("plugins", {})
+        )
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the number of plugins."""
+        if not self.available:
+            return None
+        
+        plugins_data = self.coordinator.data.get("plugins", {})
+        plugins = plugins_data.get("plugins", [])
+        return len(plugins) if isinstance(plugins, list) else 0
