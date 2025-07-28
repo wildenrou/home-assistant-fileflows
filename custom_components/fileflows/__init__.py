@@ -1,4 +1,4 @@
-"""The FileFlows integration."""
+"""The FileFlows integration - Conservative version."""
 from __future__ import annotations
 
 import logging
@@ -22,7 +22,7 @@ SCAN_INTERVAL = timedelta(seconds=30)
 
 
 class FileFlowsDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the API."""
+    """Class to manage fetching data from the FileFlows API."""
 
     def __init__(
         self,
@@ -41,25 +41,24 @@ class FileFlowsDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
-        """Update data via library."""
+        """Update data via library - only using status endpoint."""
         try:
-            # Get comprehensive data from all available endpoints
-            data = await self.api_client.get_comprehensive_data()
+            # Only get status since that's the only endpoint we know works
+            status_data = await self.api_client.get_status()
             
-            _LOGGER.debug("Successfully updated FileFlows data. Available keys: %s", 
-                         list(data.keys()) if data else "None")
+            _LOGGER.debug(
+                "Successfully updated FileFlows data. Queue: %s, Processing: %s", 
+                status_data.get('queue'), status_data.get('processing')
+            )
             
-            return data
+            return {"status": status_data}
             
         except FileFlowsApiError as err:
-            _LOGGER.warning("Could not get FileFlows data: %s", err)
-            # Return error in status so sensors can handle it
-            return {
-                "status": {"error": str(err)}
-            }
+            _LOGGER.warning("Could not get FileFlows status: %s", err)
+            raise UpdateFailed(f"Error communicating with FileFlows API: {err}") from err
         except Exception as err:
-            _LOGGER.error("Error communicating with FileFlows API: %s", err)
-            raise UpdateFailed(f"Error communicating with API: {err}") from err
+            _LOGGER.error("Unexpected error communicating with FileFlows API: %s", err)
+            raise UpdateFailed(f"Unexpected error communicating with API: {err}") from err
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -72,9 +71,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Extract host and port from URL if provided, otherwise use direct host/port
     if CONF_URL in config_data and config_data[CONF_URL]:
         from urllib.parse import urlparse
-        parsed = urlparse(config_data[CONF_URL])
-        host = parsed.hostname
-        port = parsed.port or 8585
+        try:
+            parsed = urlparse(config_data[CONF_URL])
+            host = parsed.hostname
+            port = parsed.port or 8585
+            if not host:
+                _LOGGER.error("Invalid URL format: %s", config_data[CONF_URL])
+                return False
+        except Exception as err:
+            _LOGGER.error("Error parsing URL %s: %s", config_data[CONF_URL], err)
+            return False
     else:
         host = config_data.get(CONF_HOST, config_data.get("host"))
         port = config_data.get(CONF_PORT, config_data.get("port", 8585))
@@ -84,9 +90,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
     
     api_key = config_data.get(CONF_API_KEY)
-    timeout = config_data.get(CONF_TIMEOUT, 10)
+    if api_key:
+        # Remove empty strings
+        api_key = api_key.strip() or None
     
-    _LOGGER.debug("Connecting to FileFlows at %s:%s", host, port)
+    _LOGGER.info("Connecting to FileFlows at %s:%s (API key: %s)", 
+                 host, port, "provided" if api_key else "not provided")
     
     # Create API client with Home Assistant's session
     session = async_create_clientsession(hass)
@@ -101,14 +110,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         if not await api_client.test_connection():
             _LOGGER.error("Unable to connect to FileFlows at %s:%s", host, port)
-            raise ConfigEntryNotReady(
-                f"Unable to connect to FileFlows at {host}:{port}"
-            )
+            raise ConfigEntryNotReady(f"Unable to connect to FileFlows at {host}:{port}")
     except Exception as err:
-        _LOGGER.error("Failed to connect to FileFlows: %s", err)
-        raise ConfigEntryNotReady(
-            f"Unable to connect to FileFlows at {host}:{port}: {err}"
-        ) from err
+        _LOGGER.error("Failed to connect to FileFlows at %s:%s: %s", host, port, err)
+        raise ConfigEntryNotReady(f"Failed to connect to FileFlows: {err}") from err
     
     # Create coordinator with custom scan interval if provided
     scan_interval = timedelta(seconds=config_data.get(CONF_SCAN_INTERVAL, 30))
@@ -118,10 +123,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator.async_config_entry_first_refresh()
     except Exception as err:
-        _LOGGER.error("Failed to fetch initial data: %s", err)
-        raise ConfigEntryNotReady(
-            f"Failed to fetch initial data from FileFlows: {err}"
-        ) from err
+        _LOGGER.error("Failed to fetch initial data from FileFlows: %s", err)
+        raise ConfigEntryNotReady(f"Failed to fetch initial data: {err}") from err
     
     # Store coordinator and config
     hass.data.setdefault(DOMAIN, {})
@@ -131,60 +134,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "config": {
             "host": host,
             "port": port,
-            "timeout": timeout,
             "scan_interval": scan_interval.total_seconds(),
-            "connected_last_seen_timespan": config_data.get(CONF_CONNECTED_LAST_SEEN_TIMESPAN, DEFAULT_CONNECTED_LAST_SEEN_TIMESPAN),
         }
     }
     
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     
-    # Register services
-    async def pause_processing_service(call):
-        """Handle pause processing service call."""
-        try:
-            result = await api_client.pause_processing()
-            if result.get("success", True):
-                _LOGGER.info("FileFlows processing paused")
-                await coordinator.async_request_refresh()
-            else:
-                _LOGGER.error("Failed to pause FileFlows processing: %s", result.get("error"))
-        except Exception as err:
-            _LOGGER.error("Error pausing FileFlows processing: %s", err)
-
-    async def resume_processing_service(call):
-        """Handle resume processing service call."""
-        try:
-            result = await api_client.resume_processing()
-            if result.get("success", True):
-                _LOGGER.info("FileFlows processing resumed")
-                await coordinator.async_request_refresh()
-            else:
-                _LOGGER.error("Failed to resume FileFlows processing: %s", result.get("error"))
-        except Exception as err:
-            _LOGGER.error("Error resuming FileFlows processing: %s", err)
-
-    async def force_refresh_service(call):
-        """Handle force refresh service call."""
-        try:
-            await coordinator.async_request_refresh()
-            _LOGGER.info("FileFlows data refresh requested")
-        except Exception as err:
-            _LOGGER.error("Error refreshing FileFlows data: %s", err)
-
-    # Register the services
-    hass.services.async_register(
-        DOMAIN, "pause_processing", pause_processing_service
-    )
-    hass.services.async_register(
-        DOMAIN, "resume_processing", resume_processing_service
-    )
-    hass.services.async_register(
-        DOMAIN, "force_refresh", force_refresh_service
-    )
-    
-    _LOGGER.info("FileFlows integration setup completed for %s:%s", host, port)
+    _LOGGER.info("FileFlows integration setup completed successfully for %s:%s", host, port)
     return True
 
 
@@ -194,15 +151,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Unload platforms
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        # Clean up data (don't close session since it's managed by Home Assistant)
-        data = hass.data[DOMAIN].pop(entry.entry_id)
-        
-        # Unregister services if this is the last entry
-        if not hass.data[DOMAIN]:  # No more FileFlows integrations
-            hass.services.async_remove(DOMAIN, "pause_processing")
-            hass.services.async_remove(DOMAIN, "resume_processing")
-            hass.services.async_remove(DOMAIN, "force_refresh")
-        
-        _LOGGER.info("FileFlows integration unloaded")
+        # Clean up data (session is managed by Home Assistant)
+        hass.data[DOMAIN].pop(entry.entry_id)
+        _LOGGER.info("FileFlows integration unloaded successfully")
     
     return unload_ok
