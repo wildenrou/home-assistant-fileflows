@@ -1,11 +1,13 @@
 {
   "domain": "fileflows",
   "name": "FileFlows",
-  "version": "0.1",
-  "integration_type": "hub",
-  "documentation": "https://github.com/deosrc/home-assistant-fileflows",
-  "issue_tracker": "https://github.com/deosrc/home-assistant-fileflows/issues",
-  "codeowners": ["@deosrc"],
-  "iot_class": "local_polling",
-  "config_flow": true
+  "codeowners": ["@wildenrou"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/wildenrou/home-assistant-fileflows",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/wildenrou/home-assistant-fileflows/issues",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
 }
